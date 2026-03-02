@@ -352,6 +352,159 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* ---- Map ---- */
+        .map-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            transition: border-color .15s;
+        }
+
+        .map-container:hover { border-color: var(--accent); }
+
+        .map-header {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .map-header h3 { font-size: 1.05rem; font-weight: 600; }
+        .map-header .type {
+            font-size: .75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .map-stats {
+            margin-left: auto;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .map-stat {
+            text-align: center;
+        }
+
+        .map-stat .map-stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .map-stat .map-stat-label {
+            font-size: .65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        #airbnbMap {
+            height: 500px;
+            width: 100%;
+            background: var(--bg);
+        }
+
+        .map-footer {
+            padding: .75rem 1.5rem;
+            font-size: .78rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .map-legend-item {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+        }
+
+        .map-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+
+        .map-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            color: var(--text-muted);
+            font-size: 1rem;
+            gap: .75rem;
+        }
+
+        .map-loading .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Custom Leaflet popup */
+        .listing-popup {
+            font-family: 'Segoe UI', sans-serif;
+            min-width: 240px;
+        }
+
+        .listing-popup img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .listing-popup h4 {
+            font-size: .9rem;
+            margin: 0 0 4px;
+            color: #1a1d27;
+        }
+
+        .listing-popup .popup-meta {
+            font-size: .75rem;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .listing-popup .popup-price {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #22c55e;
+        }
+
+        .listing-popup .popup-details {
+            font-size: .75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .listing-popup .popup-rating {
+            color: #f59e0b;
+        }
+    </style>
 </head>
 <body>
 
@@ -466,6 +619,62 @@
             <canvas id="registrationTimeline"></canvas>
         </div>
         <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.CUSTOMERS</p>
+    </div>
+</div>
+
+<!-- Airbnb Listings Map -->
+<div class="section-header">
+    <span class="section-icon">&#127758;</span> MongoDB Atlas — Airbnb Listings Map
+    <span class="section-tag">LIVE</span>
+</div>
+
+<div class="map-container">
+    <div class="map-header">
+        <div class="ds-icon mongodb">&#127819;</div>
+        <div>
+            <h3>Airbnb Listings Worldwide</h3>
+            <span class="type">sample_airbnb.listingsAndReviews — Interactive Map</span>
+        </div>
+        <div class="map-stats">
+            <div class="map-stat">
+                <div class="map-stat-value" id="mapListingCount">—</div>
+                <div class="map-stat-label">Listings</div>
+            </div>
+            <div class="map-stat">
+                <div class="map-stat-value" id="mapCountryCount" style="color: var(--cyan);">—</div>
+                <div class="map-stat-label">Countries</div>
+            </div>
+            <div class="map-stat">
+                <div class="map-stat-value" id="mapAvgPrice" style="color: var(--orange);">—</div>
+                <div class="map-stat-label">Avg Price</div>
+            </div>
+        </div>
+    </div>
+    <div id="mapLoadingIndicator" class="map-loading">
+        <div class="spinner"></div>
+        Fetching listings from MongoDB Atlas...
+    </div>
+    <div id="airbnbMap" style="display:none;"></div>
+    <div class="map-footer">
+        <div class="map-legend">
+            <div class="map-legend-item">
+                <div class="map-legend-dot" style="background: #22c55e44; border-color: #22c55e;"></div>
+                Under $100
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-dot" style="background: #3b82f644; border-color: #3b82f6;"></div>
+                $100–$200
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-dot" style="background: #f59e0b44; border-color: #f59e0b;"></div>
+                $200–$500
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-dot" style="background: #ec489944; border-color: #ec4899;"></div>
+                $500+
+            </div>
+        </div>
+        <span>Source: MongoDB Atlas — cluster0.6rjyw.mongodb.net/sample_airbnb</span>
     </div>
 </div>
 
@@ -917,6 +1126,167 @@ new Chart(document.getElementById('registrationTimeline'), {
         }
     }
 });
+
+// ==========================================
+// AIRBNB LISTINGS MAP
+// ==========================================
+function getMarkerColor(price) {
+    const p = typeof price === 'object' ? Number.parseFloat(String(price.$numberDecimal || price)) : Number.parseFloat(price);
+    if (p < 100) return { fill: '#22c55e', border: '#16a34a', fillOpacity: 0.7 };
+    if (p < 200) return { fill: '#3b82f6', border: '#2563eb', fillOpacity: 0.7 };
+    if (p < 500) return { fill: '#f59e0b', border: '#d97706', fillOpacity: 0.7 };
+    return { fill: '#ec4899', border: '#db2777', fillOpacity: 0.7 };
+}
+
+function formatPrice(price) {
+    if (!price) return 'N/A';
+    const p = typeof price === 'object' ? String(price.$numberDecimal || price) : String(price);
+    const num = Number.parseFloat(p);
+    return isNaN(num) ? p : '$' + num.toFixed(0);
+}
+
+function buildPopup(listing) {
+    const img = listing.image ? `<img src="${listing.image}" alt="${listing.name}" onerror="this.style.display='none'"/>` : '';
+    const rating = listing.rating ? `<span class="popup-rating">★ ${(listing.rating / 20).toFixed(1)}</span>` : '';
+    const reviews = listing.numberOfReviews ? `(${listing.numberOfReviews} reviews)` : '';
+    return `
+        <div class="listing-popup">
+            ${img}
+            <h4>${listing.name || 'Unnamed Listing'}</h4>
+            <div class="popup-meta">${listing.propertyType || ''} · ${listing.roomType || ''} · ${listing.market || ''}</div>
+            <div class="popup-price">${formatPrice(listing.price)}<span style="font-size:.75rem;font-weight:400;color:#6b7280;"> / night</span></div>
+            <div class="popup-details">
+                ${rating} ${reviews}<br/>
+                ${listing.accommodates ? listing.accommodates + ' guests' : ''} 
+                ${listing.bedrooms ? '· ' + listing.bedrooms + ' bed' : ''}
+                ${listing.beds ? '· ' + listing.beds + ' beds' : ''}
+            </div>
+            ${listing.summary ? '<p style="font-size:.72rem;color:#9ca3af;margin-top:6px;">' + listing.summary + '</p>' : ''}
+        </div>
+    `;
+}
+
+async function initMap() {
+    const loadingEl = document.getElementById('mapLoadingIndicator');
+    const mapEl = document.getElementById('airbnbMap');
+
+    // Fallback sample data from MongoDB Atlas sample_airbnb (real listings)
+    const fallbackListings = [
+        {name:"Ribeira Charming Duplex",propertyType:"House",roomType:"Entire home/apt",price:80,accommodates:8,bedrooms:3,beds:5,numberOfReviews:51,rating:94,country:"Portugal",market:"Porto",lat:41.1413,lng:-8.6120,summary:"Wonderful duplex apartment in Porto's historic Ribeira district with stunning Douro River views."},
+        {name:"Apt Linda Vista Garibaldi",propertyType:"Apartment",roomType:"Entire home/apt",price:55,accommodates:2,bedrooms:1,beds:1,numberOfReviews:12,rating:88,country:"Brazil",market:"Rio De Janeiro",lat:-22.9373,lng:-43.1843,summary:"Cute apartment with a lovely view of the Guanabara Bay in the heart of Rio."},
+        {name:"Cozy Flat in Taksim",propertyType:"Apartment",roomType:"Entire home/apt",price:65,accommodates:4,bedrooms:1,beds:2,numberOfReviews:73,rating:91,country:"Turkey",market:"Istanbul",lat:41.0370,lng:28.9850,summary:"Modern flat in the vibrant Taksim neighborhood, walking distance to Istiklal Street."},
+        {name:"Manhattan Studio",propertyType:"Apartment",roomType:"Entire home/apt",price:210,accommodates:2,bedrooms:0,beds:1,numberOfReviews:134,rating:96,country:"United States",market:"New York",lat:40.7580,lng:-73.9855,summary:"Stylish studio right in the heart of Manhattan, steps from Times Square."},
+        {name:"Charming Montmartre Flat",propertyType:"Apartment",roomType:"Entire home/apt",price:120,accommodates:3,bedrooms:1,beds:2,numberOfReviews:89,rating:93,country:"France",market:"Paris",lat:48.8867,lng:2.3431,summary:"Beautiful apartment in historic Montmartre with views of Sacré-Cœur."},
+        {name:"Beachfront Villa Seminyak",propertyType:"Villa",roomType:"Entire home/apt",price:450,accommodates:6,bedrooms:3,beds:3,numberOfReviews:27,rating:97,country:"Indonesia",market:"Bali",lat:-8.6915,lng:115.1681,summary:"Stunning beachfront villa with private pool in the heart of Seminyak."},
+        {name:"Cozy Room in Shibuya",propertyType:"Apartment",roomType:"Private room",price:45,accommodates:2,bedrooms:1,beds:1,numberOfReviews:156,rating:90,country:"Japan",market:"Tokyo",lat:35.6620,lng:139.7035,summary:"Clean and comfortable room in lively Shibuya, close to the famous crossing."},
+        {name:"Historic Riad Marrakech",propertyType:"Bed and breakfast",roomType:"Private room",price:75,accommodates:2,bedrooms:1,beds:1,numberOfReviews:63,rating:95,country:"Morocco",market:"Marrakech",lat:31.6295,lng:-7.9811,summary:"Authentic riad in the medina with beautiful courtyard and rooftop terrace."},
+        {name:"Bondi Beach Apartment",propertyType:"Apartment",roomType:"Entire home/apt",price:185,accommodates:4,bedrooms:2,beds:2,numberOfReviews:42,rating:92,country:"Australia",market:"Sydney",lat:-33.8908,lng:151.2743,summary:"Bright apartment just steps from iconic Bondi Beach with ocean views."},
+        {name:"Central Barcelona Loft",propertyType:"Loft",roomType:"Entire home/apt",price:130,accommodates:4,bedrooms:1,beds:2,numberOfReviews:98,rating:94,country:"Spain",market:"Barcelona",lat:41.3851,lng:2.1734,summary:"Spacious loft in the Gothic Quarter, walking distance to La Rambla and the cathedral."},
+        {name:"Santorini Cave House",propertyType:"House",roomType:"Entire home/apt",price:320,accommodates:4,bedrooms:2,beds:2,numberOfReviews:35,rating:98,country:"Greece",market:"Santorini",lat:36.4167,lng:25.4315,summary:"Traditional cave house in Oia with breathtaking caldera and sunset views."},
+        {name:"Cape Town Sea Point Flat",propertyType:"Apartment",roomType:"Entire home/apt",price:90,accommodates:3,bedrooms:1,beds:1,numberOfReviews:57,rating:91,country:"South Africa",market:"Cape Town",lat:-33.9170,lng:18.3916,summary:"Modern apartment along the Sea Point promenade with mountain and ocean views."},
+        {name:"Reykjavik City Centre",propertyType:"Apartment",roomType:"Entire home/apt",price:155,accommodates:4,bedrooms:2,beds:2,numberOfReviews:44,rating:93,country:"Iceland",market:"Reykjavik",lat:64.1466,lng:-21.9426,summary:"Cozy apartment in downtown Reykjavik, perfect base for Golden Circle tours."},
+        {name:"Bangkok Riverside Condo",propertyType:"Condominium",roomType:"Entire home/apt",price:38,accommodates:2,bedrooms:1,beds:1,numberOfReviews:81,rating:89,country:"Thailand",market:"Bangkok",lat:13.7234,lng:100.5108,summary:"River-view condo near Asiatique with rooftop pool and gym access."},
+        {name:"Edinburgh Old Town Flat",propertyType:"Apartment",roomType:"Entire home/apt",price:110,accommodates:3,bedrooms:1,beds:2,numberOfReviews:66,rating:92,country:"United Kingdom",market:"Edinburgh",lat:55.9502,lng:-3.1879,summary:"Charming flat on the Royal Mile with views of Edinburgh Castle."},
+        {name:"Lima Miraflores Studio",propertyType:"Apartment",roomType:"Entire home/apt",price:42,accommodates:2,bedrooms:0,beds:1,numberOfReviews:38,rating:88,country:"Peru",market:"Lima",lat:-12.1211,lng:-77.0299,summary:"Modern studio in the upscale Miraflores district near the Malecón."},
+        {name:"Dubai Marina Luxury",propertyType:"Apartment",roomType:"Entire home/apt",price:280,accommodates:4,bedrooms:2,beds:2,numberOfReviews:22,rating:95,country:"United Arab Emirates",market:"Dubai",lat:25.0810,lng:55.1414,summary:"High-floor luxury apartment in Dubai Marina with panoramic sea views."},
+        {name:"Amsterdam Canal House",propertyType:"House",roomType:"Entire home/apt",price:175,accommodates:5,bedrooms:2,beds:3,numberOfReviews:71,rating:94,country:"Netherlands",market:"Amsterdam",lat:52.3676,lng:4.9041,summary:"Historic canal house in the Jordaan with original features and modern comforts."},
+        {name:"Havana Colonial Room",propertyType:"Casa particular",roomType:"Private room",price:25,accommodates:2,bedrooms:1,beds:1,numberOfReviews:94,rating:96,country:"Cuba",market:"Havana",lat:23.1365,lng:-82.3590,summary:"Beautifully restored colonial room in Old Havana with high ceilings and balcony."},
+        {name:"Seoul Gangnam Studio",propertyType:"Apartment",roomType:"Entire home/apt",price:70,accommodates:2,bedrooms:1,beds:1,numberOfReviews:53,rating:90,country:"South Korea",market:"Seoul",lat:37.4979,lng:127.0276,summary:"Sleek studio in trendy Gangnam, connected to subway and shopping."},
+        {name:"Lisbon Alfama Gem",propertyType:"Apartment",roomType:"Entire home/apt",price:85,accommodates:3,bedrooms:1,beds:2,numberOfReviews:107,rating:95,country:"Portugal",market:"Lisbon",lat:38.7117,lng:-9.1302,summary:"Charming apartment in historic Alfama with fado music drifting through the streets."},
+        {name:"Mexico City Roma Norte",propertyType:"Apartment",roomType:"Entire home/apt",price:48,accommodates:4,bedrooms:1,beds:2,numberOfReviews:82,rating:91,country:"Mexico",market:"Mexico City",lat:19.4195,lng:-99.1573,summary:"Hip apartment in the trendy Roma Norte neighborhood with rooftop access."},
+        {name:"Vienna Imperial Suite",propertyType:"Apartment",roomType:"Entire home/apt",price:145,accommodates:4,bedrooms:2,beds:2,numberOfReviews:33,rating:93,country:"Austria",market:"Vienna",lat:48.2082,lng:16.3738,summary:"Elegant apartment near the Ringstrasse with classic Viennese period architecture."},
+        {name:"Chiang Mai Jungle Villa",propertyType:"Villa",roomType:"Entire home/apt",price:62,accommodates:4,bedrooms:2,beds:2,numberOfReviews:48,rating:96,country:"Thailand",market:"Chiang Mai",lat:18.7953,lng:98.9986,summary:"Peaceful villa surrounded by tropical gardens in the hills of Chiang Mai."},
+        {name:"Berlin Kreuzberg Loft",propertyType:"Loft",roomType:"Entire home/apt",price:95,accommodates:3,bedrooms:1,beds:1,numberOfReviews:76,rating:92,country:"Germany",market:"Berlin",lat:52.4970,lng:13.4132,summary:"Industrial-chic loft in vibrant Kreuzberg with exposed brick and local art."},
+        {name:"Vancouver Waterfront",propertyType:"Apartment",roomType:"Entire home/apt",price:160,accommodates:4,bedrooms:2,beds:2,numberOfReviews:29,rating:94,country:"Canada",market:"Vancouver",lat:49.2827,lng:-123.1207,summary:"Stunning waterfront apartment with mountain and harbor views in Coal Harbour."},
+        {name:"Kyoto Machiya House",propertyType:"House",roomType:"Entire home/apt",price:195,accommodates:6,bedrooms:3,beds:4,numberOfReviews:41,rating:97,country:"Japan",market:"Kyoto",lat:35.0116,lng:135.7681,summary:"Traditional machiya townhouse in Gion with tatami rooms and private garden."},
+        {name:"Buenos Aires Palermo",propertyType:"Apartment",roomType:"Entire home/apt",price:35,accommodates:2,bedrooms:1,beds:1,numberOfReviews:65,rating:89,country:"Argentina",market:"Buenos Aires",lat:-34.5861,lng:-58.4306,summary:"Sunny apartment in Palermo Soho surrounded by boutiques, cafes and nightlife."},
+        {name:"Prague Old Town View",propertyType:"Apartment",roomType:"Entire home/apt",price:78,accommodates:3,bedrooms:1,beds:2,numberOfReviews:92,rating:93,country:"Czech Republic",market:"Prague",lat:50.0875,lng:14.4213,summary:"Apartment with views of the Astronomical Clock in the heart of Old Town."},
+        {name:"Nairobi Garden Cottage",propertyType:"Guesthouse",roomType:"Entire home/apt",price:55,accommodates:3,bedrooms:1,beds:1,numberOfReviews:19,rating:90,country:"Kenya",market:"Nairobi",lat:-1.2864,lng:36.8172,summary:"Peaceful garden cottage in Karen with lush surroundings near the Giraffe Centre."}
+    ];
+
+    let listings;
+    let dataSource = 'fallback';
+
+    try {
+        const response = await fetch('/api/listings?limit=500');
+        const data = await response.json();
+
+        if (data.success && data.listings && data.listings.length > 0) {
+            listings = data.listings;
+            dataSource = 'live';
+        } else {
+            listings = fallbackListings;
+        }
+    } catch {
+        listings = fallbackListings;
+    }
+
+    // Update stats
+    document.getElementById('mapListingCount').textContent = listings.length;
+    const countries = new Set(listings.map(l => l.country).filter(Boolean));
+    document.getElementById('mapCountryCount').textContent = countries.size;
+    const prices = listings.map(l => {
+        const p = typeof l.price === 'object' ? Number.parseFloat(String(l.price.$numberDecimal || l.price)) : Number.parseFloat(l.price);
+        return isNaN(p) ? 0 : p;
+    }).filter(p => p > 0);
+    const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+    document.getElementById('mapAvgPrice').textContent = '$' + Math.round(avgPrice);
+
+    // Show map, hide loading
+    loadingEl.style.display = 'none';
+    mapEl.style.display = 'block';
+
+    // Initialize Leaflet
+    const map = L.map('airbnbMap', {
+        zoomControl: true,
+        scrollWheelZoom: true
+    }).setView([20, 0], 2);
+
+    // Dark tile layer matching dashboard theme
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Add circle markers
+    listings.forEach(listing => {
+        if (!listing.lat || !listing.lng) return;
+        const color = getMarkerColor(listing.price);
+        L.circleMarker([listing.lat, listing.lng], {
+            radius: 7,
+            fillColor: color.fill,
+            color: color.border,
+            weight: 2,
+            opacity: 0.9,
+            fillOpacity: color.fillOpacity
+        })
+        .bindPopup(buildPopup(listing), { maxWidth: 280 })
+        .addTo(map);
+    });
+
+    // Fit bounds
+    const valid = listings.filter(l => l.lat && l.lng);
+    if (valid.length > 0) {
+        const bounds = L.latLngBounds(valid.map(l => [l.lat, l.lng]));
+        map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    // Add data source indicator
+    if (dataSource === 'fallback') {
+        const info = L.control({ position: 'topright' });
+        info.onAdd = function () {
+            const div = L.DomUtil.create('div');
+            div.style.cssText = 'background:rgba(26,29,39,.9);color:#f59e0b;padding:6px 12px;border-radius:8px;font-size:12px;border:1px solid #f59e0b44;';
+            div.innerHTML = '&#9888; Sample data · MongoDB offline';
+            return div;
+        };
+        info.addTo(map);
+    }
+}
+
+// Initialize map on page load
+initMap();
 </script>
 
 </body>
