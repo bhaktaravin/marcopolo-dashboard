@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marco Polo — Datasource Dashboard</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --card-hover: #222632;
+            --border: #2a2e3b;
+            --accent: #6c63ff;
+            --accent-light: #8b83ff;
+            --text: #e4e4e7;
+            --text-muted: #9ca3af;
+            --green: #22c55e;
+            --blue: #3b82f6;
+            --orange: #f59e0b;
+            --pink: #ec4899;
+            --cyan: #06b6d4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .header svg { width: 40px; height: 40px; }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-light), var(--cyan));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header .badge {
+            margin-left: auto;
+            background: rgba(34, 197, 94, .15);
+            color: var(--green);
+            padding: .35rem .85rem;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+        }
+
+        .badge .dot {
+            width: 8px; height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+
+        /* ---- Summary Cards ---- */
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: transform .15s, border-color .15s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+        }
+
+        .stat-card .label {
+            font-size: .8rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--text-muted);
+            margin-bottom: .5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-card .sub {
+            font-size: .78rem;
+            color: var(--text-muted);
+            margin-top: .25rem;
+        }
+
+        /* ---- Datasource Sections ---- */
+        .ds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .ds-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: border-color .15s;
+        }
+
+        .ds-card:hover { border-color: var(--accent); }
+
+        .ds-card-header {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ds-icon {
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .ds-icon.snowflake { background: rgba(6, 182, 212, .15); color: var(--cyan); }
+        .ds-icon.salesforce { background: rgba(59, 130, 246, .15); color: var(--blue); }
+        .ds-icon.s3 { background: rgba(245, 158, 11, .15); color: var(--orange); }
+        .ds-icon.mongodb { background: rgba(34, 197, 94, .15); color: var(--green); }
+
+        .ds-card-header .info h3 { font-size: 1.05rem; font-weight: 600; }
+        .ds-card-header .info .type {
+            font-size: .75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .ds-card-header .caps {
+            margin-left: auto;
+            display: flex;
+            gap: .4rem;
+        }
+
+        .cap-badge {
+            font-size: .7rem;
+            padding: .2rem .55rem;
+            border-radius: 6px;
+            background: rgba(108, 99, 255, .12);
+            color: var(--accent-light);
+            font-weight: 600;
+        }
+
+        .ds-card-body { padding: 1.25rem 1.5rem; }
+
+        .ds-card-body h4 {
+            font-size: .85rem;
+            color: var(--text-muted);
+            margin-bottom: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        /* ---- Table ---- */
+        .mini-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .mini-table th, .mini-table td {
+            text-align: left;
+            padding: .55rem .75rem;
+            font-size: .85rem;
+        }
+
+        .mini-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mini-table tr:not(:last-child) td {
+            border-bottom: 1px solid rgba(42, 46, 59, .6);
+        }
+
+        .mini-table td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            color: var(--accent-light);
+        }
+
+        /* ---- Folder Tree ---- */
+        .folder-list { list-style: none; }
+
+        .folder-list li {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .5rem 0;
+            border-bottom: 1px solid rgba(42, 46, 59, .4);
+            font-size: .85rem;
+        }
+
+        .folder-list li:last-child { border-bottom: none; }
+
+        .folder-icon { color: var(--orange); font-size: 1rem; }
+
+        /* ---- Charts Section ---- */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            transition: border-color .15s;
+        }
+
+        .chart-card:hover { border-color: var(--accent); }
+
+        .chart-card h4 {
+            font-size: .85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .chart-card .chart-subtitle {
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin-top: .5rem;
+            text-align: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            max-height: 300px;
+        }
+
+        /* ---- KPI Row ---- */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            transition: transform .15s, border-color .15s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+        }
+
+        .kpi-card .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-card .kpi-label {
+            font-size: .75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            margin-top: .25rem;
+        }
+
+        /* ---- Section Headers ---- */
+        .section-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: .5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .section-header .section-icon {
+            font-size: 1.2rem;
+        }
+
+        .section-tag {
+            font-size: .65rem;
+            padding: .15rem .5rem;
+            border-radius: 4px;
+            background: rgba(6, 182, 212, .15);
+            color: var(--cyan);
+            font-weight: 600;
+            margin-left: .5rem;
+        }
+
+        /* ---- Footer ---- */
+        .footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: .75rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 480px) {
+            body { padding: 1rem; }
+            .ds-grid { grid-template-columns: 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <svg viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill="#6c63ff" fill-opacity=".15"/>
+        <path d="M12 20c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="#6c63ff" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="20" cy="20" r="3" fill="#6c63ff"/>
+        <path d="M20 28c-2.2 0-4-.9-5.3-2.3" stroke="#8b83ff" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <h1>Marco Polo — Datasource Dashboard</h1>
+    <span class="badge"><span class="dot"></span> Connected</span>
+</div>
+
+<!-- Summary Stats -->
+<div class="summary">
+    <div class="stat-card">
+        <div class="label">Datasources</div>
+        <div class="value" style="color: var(--accent-light);" data-count="4">0</div>
+        <div class="sub">S3 &bull; Salesforce &bull; Snowflake &bull; MongoDB</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Databases</div>
+        <div class="value" style="color: var(--cyan);" data-count="3">0</div>
+        <div class="sub">salesforce &bull; ANALYTICS &bull; sample_airbnb</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total Tables / Collections</div>
+        <div class="value" style="color: var(--green);" data-count="660">0</div>
+        <div class="sub">656 Salesforce + 3 Snowflake + 1 MongoDB</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">S3 Buckets</div>
+        <div class="value" style="color: var(--orange);" data-count="1">0</div>
+        <div class="sub">opsrus-lakehouse-demo</div>
+    </div>
+</div>
+
+<!-- Snowflake KPIs (live from query) -->
+<div class="section-header">
+    <span class="section-icon">&#10052;</span> Snowflake Analytics — Live Data
+    <span class="section-tag">LIVE</span>
+</div>
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--cyan);" data-count="10">0</div>
+        <div class="kpi-label">Customers</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--blue);" data-count="17">0</div>
+        <div class="kpi-label">Total Orders</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--green);" data-count="13736" data-prefix="$" data-separator=",">0</div>
+        <div class="kpi-label">Total Revenue</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--orange);" data-count="808" data-prefix="$">0</div>
+        <div class="kpi-label">Avg Order Value</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--green);" data-count="9">0</div>
+        <div class="kpi-label">Active Customers</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-value" style="color: var(--accent-light);" data-count="8">0</div>
+        <div class="kpi-label">Countries</div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h4>Revenue by Product Category</h4>
+        <div class="chart-wrapper">
+            <canvas id="revenueByCategory"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.PRODUCT_METRICS</p>
+    </div>
+    <div class="chart-card">
+        <h4>Orders by Status</h4>
+        <div class="chart-wrapper">
+            <canvas id="ordersByStatus"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.ORDERS</p>
+    </div>
+    <div class="chart-card">
+        <h4>Customer Purchases (Top 10)</h4>
+        <div class="chart-wrapper">
+            <canvas id="customerPurchases"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.CUSTOMERS</p>
+    </div>
+    <div class="chart-card">
+        <h4>Revenue Timeline</h4>
+        <div class="chart-wrapper">
+            <canvas id="revenueTimeline"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.PRODUCT_METRICS</p>
+    </div>
+    <div class="chart-card">
+        <h4>Orders by Shipping Country</h4>
+        <div class="chart-wrapper">
+            <canvas id="ordersByCountry"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.ORDERS</p>
+    </div>
+    <div class="chart-card">
+        <h4>Customer Registration Timeline</h4>
+        <div class="chart-wrapper">
+            <canvas id="registrationTimeline"></canvas>
+        </div>
+        <p class="chart-subtitle">Source: PROD_DATAVINCI_DB.ANALYTICS.CUSTOMERS</p>
+    </div>
+</div>
+
+<!-- Datasource Cards Header -->
+<div class="section-header">
+    <span class="section-icon">&#128451;</span> Datasource Details
+</div>
+
+<!-- Datasource Cards -->
+<div class="ds-grid">
+
+    <!-- Snowflake -->
+    <div class="ds-card">
+        <div class="ds-card-header">
+            <div class="ds-icon snowflake">&#10052;</div>
+            <div class="info">
+                <h3>Snowflake</h3>
+                <span class="type">snowflake-test-datasource-for-gmail-com</span>
+            </div>
+            <div class="caps">
+                <span class="cap-badge">query</span>
+                <span class="cap-badge">schema</span>
+            </div>
+        </div>
+        <div class="ds-card-body">
+            <h4>ANALYTICS Database &mdash; 3 Tables</h4>
+            <table class="mini-table">
+                <thead>
+                    <tr><th>Table</th><th style="text-align:right">Rows</th><th style="text-align:right">Size</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>CUSTOMERS</td><td class="num">10</td><td class="num">4 KB</td></tr>
+                    <tr><td>ORDERS</td><td class="num">17</td><td class="num">3.5 KB</td></tr>
+                    <tr><td>PRODUCT_METRICS</td><td class="num">16</td><td class="num">3 KB</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Salesforce -->
+    <div class="ds-card">
+        <div class="ds-card-header">
+            <div class="ds-icon salesforce">SF</div>
+            <div class="info">
+                <h3>Salesforce</h3>
+                <span class="type">salesforce-test-datasource-for-gmail-com</span>
+            </div>
+            <div class="caps">
+                <span class="cap-badge">query</span>
+                <span class="cap-badge">schema</span>
+            </div>
+        </div>
+        <div class="ds-card-body">
+            <h4>salesforce Database &mdash; 656 Tables</h4>
+            <table class="mini-table">
+                <thead>
+                    <tr><th colspan="2">Sample Tables (showing first 10)</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Account</td><td class="num"></td></tr>
+                    <tr><td>AccountCleanInfo</td><td class="num"></td></tr>
+                    <tr><td>AccountContactRole</td><td class="num"></td></tr>
+                    <tr><td>AccountFeed</td><td class="num"></td></tr>
+                    <tr><td>AccountHistory</td><td class="num"></td></tr>
+                    <tr><td>AccountPartner</td><td class="num"></td></tr>
+                    <tr><td>AccountShare</td><td class="num"></td></tr>
+                    <tr><td>AIInsightAction</td><td class="num"></td></tr>
+                    <tr><td>AIInsightFeedback</td><td class="num"></td></tr>
+                    <tr><td>AIInsightReason</td><td class="num"></td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:.78rem;color:var(--text-muted);margin-top:.75rem;">+ 646 more tables</p>
+        </div>
+    </div>
+
+    <!-- S3 -->
+    <div class="ds-card">
+        <div class="ds-card-header">
+            <div class="ds-icon s3">S3</div>
+            <div class="info">
+                <h3>AWS S3</h3>
+                <span class="type">aws-s3-test-storage-for-gmail-com</span>
+            </div>
+            <div class="caps">
+                <span class="cap-badge">browse</span>
+                <span class="cap-badge">download</span>
+            </div>
+        </div>
+        <div class="ds-card-body">
+            <h4>Bucket: opsrus-lakehouse-demo</h4>
+            <ul class="folder-list">
+                <li>
+                    <span class="folder-icon">&#128193;</span>
+                    athena-results/
+                </li>
+                <li>
+                    <span class="folder-icon">&#128193;</span>
+                    bronze/
+                </li>
+                <li>
+                    <span class="folder-icon">&#128193;</span>
+                    test_logs/
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- MongoDB -->
+    <div class="ds-card">
+        <div class="ds-card-header">
+            <div class="ds-icon mongodb">&#127819;</div>
+            <div class="info">
+                <h3>MongoDB Atlas</h3>
+                <span class="type">cluster0.6rjyw.mongodb.net / sample_airbnb</span>
+            </div>
+            <div class="caps">
+                <span class="cap-badge">query</span>
+                <span class="cap-badge">schema</span>
+            </div>
+        </div>
+        <div class="ds-card-body">
+            <h4>sample_airbnb Database &mdash; 1 Collection</h4>
+            <table class="mini-table">
+                <thead>
+                    <tr><th>Collection</th><th style="text-align:right">Source</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>listingsAndReviews</td><td class="num">Spring Data</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:.78rem;color:var(--text-muted);margin-top:.75rem;">Connected via MongoDB Atlas (SRV)</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Architecture Diagram -->
+<div class="ds-card" style="margin-bottom:2rem;">
+    <div class="ds-card-header">
+        <div class="ds-icon" style="background:rgba(108,99,255,.15);color:var(--accent);">&#9881;</div>
+        <div class="info">
+            <h3>Architecture Overview</h3>
+            <span class="type">Data flow between datasources</span>
+        </div>
+    </div>
+    <div class="ds-card-body" style="text-align:center;">
+        <pre style="display:inline-block;text-align:left;font-size:.82rem;line-height:1.7;color:var(--text-muted);font-family:'Cascadia Code','Fira Code',monospace;">
+  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────────┐
+  │  Salesforce  │  │   Snowflake  │  │   AWS S3    │  │   MongoDB    │
+  │  656 tables  │  │   3 tables   │  │   1 bucket  │  │  1 collection│
+  │   (query)    │  │   (query)    │  │  (browse)   │  │   (query)    │
+  └──────┬───────┘  └──────┬───────┘  └──────┬──────┘  └──────┬───────┘
+         │                 │                 │                │
+         └─────────┬───────┘─────────────────┘────────────────┘
+                   │
+           ┌───────▼────────┐
+           │   Marco Polo   │
+           │   MCP Server   │
+           └───────┬────────┘
+                   │
+           ┌───────▼────────┐
+           │   Spring Boot  │
+           │   Dashboard    │
+           └────────────────┘
+        </pre>
+    </div>
+</div>
+
+<div class="footer">
+    Marco Polo Datasource Dashboard &bull; Generated March 2, 2026 &bull; Spring Boot 4.0.3 &bull; Data queried live from Snowflake
+</div>
+
+<script>
+// ==========================================
+// ANIMATED COUNTERS
+// ==========================================
+function animateCounters() {
+    const counters = document.querySelectorAll('[data-count]');
+    counters.forEach(counter => {
+        const target = Number.parseInt(counter.dataset.count);
+        const prefix = counter.dataset.prefix || '';
+        const useSeparator = counter.dataset.separator === ',';
+        const duration = 1500;
+        const steps = 60;
+        const stepTime = duration / steps;
+        let current = 0;
+        const increment = target / steps;
+
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            const display = Math.round(current);
+            const formatted = useSeparator ? display.toLocaleString() : display;
+            counter.textContent = prefix + formatted;
+        }, stepTime);
+    });
+}
+
+// Run counters on load with IntersectionObserver for smooth trigger
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            animateCounters();
+            observer.disconnect();
+        }
+    });
+}, { threshold: 0.1 });
+observer.observe(document.querySelector('.summary'));
+
+// ==========================================
+// CHART.JS CONFIGURATION
+// ==========================================
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = 'rgba(42, 46, 59, 0.6)';
+Chart.defaults.font.family = "'Segoe UI', -apple-system, sans-serif";
+
+const colors = {
+    cyan: '#06b6d4',
+    blue: '#3b82f6',
+    green: '#22c55e',
+    orange: '#f59e0b',
+    pink: '#ec4899',
+    purple: '#8b83ff',
+    red: '#ef4444',
+    teal: '#14b8a6'
+};
+
+// ---- 1. Revenue by Product Category (Doughnut) ----
+new Chart(document.getElementById('revenueByCategory'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Electronics', 'Furniture', 'Clothing', 'Books', 'Sports'],
+        datasets: [{
+            data: [5425.65, 3950.4, 1702.4, 1645.95, 1012.55],
+            backgroundColor: [colors.cyan, colors.orange, colors.pink, colors.blue, colors.green],
+            borderColor: '#1a1d27',
+            borderWidth: 3,
+            hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { padding: 15, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                }
+            }
+        }
+    }
+});
+
+// ---- 2. Orders by Status (Donut) ----
+new Chart(document.getElementById('ordersByStatus'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Delivered', 'Shipped', 'Pending', 'Cancelled'],
+        datasets: [{
+            data: [10, 3, 2, 1],
+            backgroundColor: [colors.green, colors.blue, colors.orange, colors.red],
+            borderColor: '#1a1d27',
+            borderWidth: 3,
+            hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { padding: 15, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+            }
+        }
+    }
+});
+
+// ---- 3. Customer Purchases (Horizontal Bar) ----
+new Chart(document.getElementById('customerPurchases'), {
+    type: 'bar',
+    data: {
+        labels: ['Fiona Green', 'Charlie Brown', 'Jessica Martinez', 'Hannah Lee', 'Alice Johnson', 'Bob Smith', 'George Wilson', 'Diana Prince', 'Ivan Petrov', 'Ethan Hunt'],
+        datasets: [{
+            label: 'Total Purchases ($)',
+            data: [3450.8, 2340, 2100, 1890.45, 1250.5, 890.75, 678.9, 567.25, 445.3, 123],
+            backgroundColor: [
+                colors.cyan+'cc', colors.blue+'cc', colors.green+'cc', colors.orange+'cc',
+                colors.pink+'cc', colors.purple+'cc', colors.teal+'cc', colors.red+'cc',
+                colors.cyan+'99', colors.blue+'99'
+            ],
+            borderRadius: 6,
+            borderSkipped: false
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `$${ctx.parsed.x.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(42,46,59,0.4)' },
+                ticks: { callback: v => '$' + v.toLocaleString() }
+            },
+            y: {
+                grid: { display: false },
+                ticks: { font: { size: 11 } }
+            }
+        }
+    }
+});
+
+// ---- 4. Revenue Timeline (Line) ----
+new Chart(document.getElementById('revenueTimeline'), {
+    type: 'line',
+    data: {
+        labels: ['Oct 5', 'Oct 20', 'Nov 10', 'Nov 15', 'Nov 18', 'Nov 20', 'Nov 25', 'Nov 30', 'Dec 1', 'Dec 5', 'Dec 8', 'Dec 10', 'Dec 12', 'Dec 14', 'Dec 15'],
+        datasets: [{
+            label: 'Revenue ($)',
+            data: [123, 1200, 350, 450.75, 1050, 945.25, 890, 567.25, 2190.4, 900.5, 678.9, 695.3, 1700.4, 1050, 945.2],
+            borderColor: colors.cyan,
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: colors.cyan,
+            pointBorderColor: '#1a1d27',
+            pointBorderWidth: 2,
+            pointHoverRadius: 7
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `Revenue: $${ctx.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(42,46,59,0.3)' },
+                ticks: { maxRotation: 45, font: { size: 10 } }
+            },
+            y: {
+                grid: { color: 'rgba(42,46,59,0.4)' },
+                ticks: { callback: v => '$' + v.toLocaleString() }
+            }
+        }
+    }
+});
+
+// ---- 5. Orders by Country (Bar) ----
+new Chart(document.getElementById('ordersByCountry'), {
+    type: 'bar',
+    data: {
+        labels: ['UK', 'USA', 'Germany', 'Japan', 'Canada', 'Spain', 'France', 'Russia', 'Australia'],
+        datasets: [{
+            label: 'Orders',
+            data: [3, 3, 2, 2, 2, 2, 1, 1, 1],
+            backgroundColor: [
+                colors.cyan+'cc', colors.blue+'cc', colors.orange+'cc', colors.pink+'cc',
+                colors.green+'cc', colors.purple+'cc', colors.teal+'cc', colors.red+'cc',
+                colors.cyan+'99'
+            ],
+            borderRadius: 6,
+            borderSkipped: false
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false } },
+            y: {
+                grid: { color: 'rgba(42,46,59,0.4)' },
+                ticks: { stepSize: 1 },
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// ---- 6. Customer Registration Timeline (Line) ----
+new Chart(document.getElementById('registrationTimeline'), {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+        datasets: [{
+            label: 'Registrations',
+            data: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            borderColor: colors.green,
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointBackgroundColor: colors.green,
+            pointBorderColor: '#1a1d27',
+            pointBorderWidth: 2,
+            pointHoverRadius: 8
+        }, {
+            label: 'Cumulative',
+            data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            borderColor: colors.purple,
+            backgroundColor: 'rgba(139, 131, 255, 0.05)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: colors.purple,
+            pointBorderColor: '#1a1d27',
+            pointBorderWidth: 2,
+            borderDash: [5, 5]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                labels: { usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } }
+            }
+        },
+        scales: {
+            x: { grid: { color: 'rgba(42,46,59,0.3)' } },
+            y: {
+                grid: { color: 'rgba(42,46,59,0.4)' },
+                beginAtZero: true,
+                ticks: { stepSize: 2 }
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
